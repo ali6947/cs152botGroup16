@@ -55,11 +55,16 @@ class Report:
 
             # Here we've found the message - it's up to you to decide what to do next!
             self.state = State.MESSAGE_IDENTIFIED
+            self.message=message
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
+                    "Do you want this message deleted? Please reply with yes/no"]
+                    # "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
         if self.state == State.MESSAGE_IDENTIFIED:
-            return ["<insert rest of reporting flow here>"]
+            if message.content.lower().startswith('y'):
+                await self.message.delete()
+            self.state=State.REPORT_COMPLETE
+            return ["Sure the message will be deleted"]
 
         return []
 
