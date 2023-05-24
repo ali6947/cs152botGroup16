@@ -18,6 +18,7 @@ class ReportType(Enum):
     DONTLIKE=auto()
     SPAM=auto()
     BULLY=auto()
+    SEXUAL_HARASS=auto()
 
 class SpamType(Enum):
     FRAUD=auto()
@@ -92,7 +93,7 @@ class Report:
             self.state = State.REASON_ASKED
             self.message=message
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    'Please select the reason for reporting the message by choosing the number.\n1)I don\'t like this message\n2)Spam\n3)Cyberbully/Harrasment']
+                    'Please select the reason for reporting the message by choosing the number.\n1)I don\'t like this message\n2)Spam\n3)Bully/Hate Speech\n4)Sexual Harrasment']
                     # "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
         # if self.state == State.MESSAGE_IDENTIFIED:
@@ -118,6 +119,12 @@ class Report:
                 self.state=State.BULLY_TYPE
                 self.report_reason=ReportType.BULLY
                 return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say']
+
+            elif '4' in message.content or 'four' in message.content or 'fourth' in message.content:
+                self.state=State.BULLY_TYPE
+                self.report_reason=ReportType.SEXUAL_HARASS
+                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say']
+
             else:
                 return ['I did not get that, please choose a number']
 
