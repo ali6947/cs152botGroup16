@@ -7,6 +7,28 @@ class State(Enum):
     AWAITING_MESSAGE = auto()
     MESSAGE_IDENTIFIED = auto()
     REPORT_COMPLETE = auto()
+    REASON_ASKED=auto()
+    BLOCK_ASKED=auto()
+    SPAM_TYPE=auto()
+    BULLY_TYPE=auto()
+    ASK_DELETE=auto()
+
+
+class ReportType(Enum):
+    DONTLIKE=auto()
+    SPAM=auto()
+    BULLY=auto()
+
+class SpamType(Enum):
+    FRAUD=auto()
+    SOLICITATION=auto()
+    IMPERSONATION=auto()
+
+class BullyType(Enum):
+    FAMILY=auto()
+    PEER=auto()
+    STRANGER=auto()
+    UNKWOWN=auto()
 
 class Report:
     START_KEYWORD = "report"
@@ -16,7 +38,20 @@ class Report:
     def __init__(self, client):
         self.state = State.REPORT_START
         self.client = client
-        self.message = None
+        self.message = None # use this to get author
+        self.report_reason=None
+        self.did_block=None
+        self.block_ask='Would you like to block this user? This user will not know that you have blocked them. Please respond with yes/no'
+        self.remove_ask='Would you like to have the message removed? Please respond with yes/no'
+        self.spam_type = None
+        self.bully_type=None
+        self.to_forward_to_mod=False
+        self.forward_to_mod_text="""The following information (if available from your report) is sent to moderation team to inform subsequent moderation decisions: 
+1) User Relationship with Sender
+2) Decision to Block
+3) Reason for Reporting
+4) Last 10 messages from sender"""
+        self.final_text="Thank you for reporting. Our content moderation team will review the message and decide on appropriate action which may involve account removal"
     
     async def handle_message(self, message):
         '''
@@ -54,22 +89,117 @@ class Report:
                 return ["It seems this message was deleted or never existed. Please try again or say `cancel` to cancel."]
 
             # Here we've found the message - it's up to you to decide what to do next!
-            self.state = State.MESSAGE_IDENTIFIED
+            self.state = State.REASON_ASKED
             self.message=message
             return ["I found this message:", "```" + message.author.name + ": " + message.content + "```", \
-                    "Do you want this message deleted? Please reply with yes/no"]
+                    'Please select the reason for reporting the message by choosing the number.\n1)I don\'t like this message\n2)Spam\n3)Cyberbully/Harrasment']
                     # "This is all I know how to do right now - it's up to you to build out the rest of my reporting flow!"]
         
-        if self.state == State.MESSAGE_IDENTIFIED:
-            if message.content.lower().startswith('y'):
+        # if self.state == State.MESSAGE_IDENTIFIED:
+        #     # guild = self.client.get_guild(int(m.group(1)))
+        #     # channel = guild.get_channel(int(m.group(2)))
+        #     self.state=State.REASON_ASKED
+        #     return ['Please select the reason for reporting the message by choosing the number.\n1)I don\'t like this message\n2)Spam\n3)Cyberbully/Harrasment']
+            # if message.content.lower().startswith('y'):
+                # await self.message.delete()
+
+        if self.state==State.REASON_ASKED:
+            if '1' in message.content or 'one' in message.content or 'first' in message.content:
+                self.state=State.BLOCK_ASKED
+                self.report_reason=ReportType.DONTLIKE
+                return [self.block_ask]
+
+            elif '2' in message.content or 'two' in message.content or 'second' in message.content:
+                self.state=State.SPAM_TYPE
+                self.report_reason=ReportType.SPAM
+                return ['Please select the type of spam by choosing a number:\n1)Fraud/scam\n2)Solicitation\n3)Impersonation']
+
+            elif '3' in message.content or 'three' in message.content or 'third' in message.content:
+                self.state=State.BULLY_TYPE
+                self.report_reason=ReportType.BULLY
+                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say']
+            else:
+                return ['I did not get that, please choose a number']
+
+
+        if self.state==State.SPAM_TYPE:
+            
+            if '1' in message.content or 'one' in message.content or 'first' in message.content:
+                self.spam_type= SpamType.FRAUD
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '2' in message.content or 'two' in message.content or 'second' in message.content:
+                self.spam_type=SpamType.SOLICITATION
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '3' in message.content or 'three' in message.content or 'third' in message.content:
+                self.spam_type=SpamType.IMPERSONATION
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            else:
+                return ['I did not get that, please choose a number']
+            ##Cannot edit message: will have to delete and send a new one with the below 2 line
+            # await self.message.channel.send('||'+self.message.content+'||')
+
+        if self.state==State.BULLY_TYPE:
+            if '1' in message.content or 'one' in message.content or 'first' in message.content:
+                self.bully_type= BullyType.FAMILY
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '2' in message.content or 'two' in message.content or 'second' in message.content:
+                self.bully_type=BullyType.PEER
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '3' in message.content or 'three' in message.content or 'third' in message.content:
+                self.bully_type=BullyType.STRANGER
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '4' in message.content or 'four' in message.content or 'fourth' in message.content:
+                self.bully_type=BullyType.UNKWOWN
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            else:
+                return ['I did not get that, please choose a number']
+
+        if self.state==State.BLOCK_ASKED:
+            if  message.content.lower().startswith('y'):
+                self.did_block=True
+                self.state=State.ASK_DELETE
+                return [f'User ```{message.author.name}``` has been blocked',self.remove_ask]
+            elif message.content.lower().startswith('n'):
+                self.state=State.ASK_DELETE
+                self.did_block=False
+                return [self.remove_ask]
+            else:
+                return ['I did not get that, please reply with yes/no']
+
+        if self.state==State.ASK_DELETE:
+
+            if  message.content.lower().startswith('y'):
+                self.state=State.REPORT_COMPLETE
                 await self.message.delete()
-            self.state=State.REPORT_COMPLETE
-            return ["Sure the message will be deleted"]
+                self.to_forward_to_mod=True
+                return ['The message has been deleted',self.forward_to_mod_text,self.final_text]
+            elif message.content.lower().startswith('n'):
+                self.state=State.REPORT_COMPLETE
+                self.to_forward_to_mod=True
+                return [self.forward_to_mod_text,self.final_text]
+            else:
+                return ['I did not get that, please reply with yes/no']
+
+                
+            
+            # return ["Sure the message will be deleted"]
 
         return []
 
     def report_complete(self):
         return self.state == State.REPORT_COMPLETE
+
+    
+
+    def forward_to_mod(self):
+        return self.to_forward_to_mod
     
 
 
