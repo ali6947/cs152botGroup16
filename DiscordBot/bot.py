@@ -140,16 +140,21 @@ class ModBot(discord.Client):
 
         if message.channel.name == f'group-{self.group_num}-mod' and message.content.startswith('.'):
             cmd=message.content.split(" ")[0][1:] # to remove dot
+            mod_channel = self.mod_channels[message.guild.id]
             if cmd=='false_report':
                 try:
                     arg=int(message.content.split(" ")[1])
                 except:
-                    print('Please recheck argument')
+                    await mod_channel.send('Please recheck argument')
                 else:
-                    rep_user=self.all_reports[arg].report_author
-                    self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
-                    user_to_dm = await self.fetch_user(rep_user.id)
-                    await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
+                    try:
+                        rep_user=self.all_reports[arg].report_author
+                    except:
+                        await mod_channel.send('Report with this ID was not found')
+                    else:
+                        self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
+                        user_to_dm = await self.fetch_user(rep_user.id)
+                        await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
 
 
 
