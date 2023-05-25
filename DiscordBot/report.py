@@ -53,6 +53,17 @@ class Report:
 3) Reason for Reporting
 4) Last 10 messages from sender"""
         self.final_text="Thank you for reporting. Our content moderation team will review the message and decide on appropriate action which may involve account removal"
+
+        self.link_database={
+        (ReportType.BULLY,BullyType.FAMILY):"https://www.verywellfamily.com/dealing-with-the-family-bully-460696",
+        (ReportType.BULLY,BullyType.PEER):"https://www.wikihow.com/Cope-With-Classmates-Hating-You",
+        (ReportType.BULLY,BullyType.STRANGER):"https://www.endcyberbullying.net/what-to-do-if-youre-a-victim",
+        (ReportType.BULLY,BullyType.UNKWOWN):"https://www.endcyberbullying.net/what-to-do-if-youre-a-victim",
+        (ReportType.SEXUAL_HARASS,BullyType.FAMILY):"https://www.rainn.org/news/surviving-sexual-abuse-family-member",
+        (ReportType.SEXUAL_HARASS,BullyType.PEER):"https://www.verywellmind.com/healing-from-sexual-harassment-in-the-workplace-4151996",
+        (ReportType.SEXUAL_HARASS,BullyType.STRANGER):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
+        (ReportType.SEXUAL_HARASS,BullyType.UNKWOWN):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
+        }
     
     async def handle_message(self, message):
         '''
@@ -186,15 +197,19 @@ class Report:
                 self.state=State.REPORT_COMPLETE
                 await self.message.delete()
                 self.to_forward_to_mod=True
-                return ['The message has been deleted',self.forward_to_mod_text,self.final_text]
+                msg_list=['The message has been deleted',self.forward_to_mod_text,self.final_text]
+                if (self.report_reason,self.bully_type) in self.link_database:
+                    msg_list.append(f'More esources to deal with what you are facing are available [here]({self.link_database[(self.report_reason,self.bully_type)]})')
+                return msg_list
             elif message.content.lower().startswith('n'):
                 self.state=State.REPORT_COMPLETE
                 self.to_forward_to_mod=True
-                return [self.forward_to_mod_text,self.final_text]
+                msg_list=[self.forward_to_mod_text,self.final_text]
+                if (self.report_reason,self.bully_type) in self.link_database:
+                    msg_list.append(f'More esources to deal with what you are facing are available [here]({self.link_database[(self.report_reason,self.bully_type)]})')
+                return msg_list
             else:
                 return ['I did not get that, please reply with yes/no']
-
-                
             
             # return ["Sure the message will be deleted"]
 
