@@ -35,6 +35,7 @@ class ModBot(discord.Client):
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
         self.report_against={}
+        
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
@@ -114,6 +115,7 @@ class ModBot(discord.Client):
                 decision_to_block='yes' if rep.did_block else 'no'
                 relation_to_abuser='Not Applicable' if rep.bully_type is None else str(rep.bully_type)
                 abuser_history = []
+                offensive_msg_body=rep.message.content
 
                 async for hs in rep.message.channel.history(limit=50):
                     if hs.author.id==abuser_id:
@@ -121,7 +123,7 @@ class ModBot(discord.Client):
                         if len(abuser_history)>=10:
                             break
                
-                await self.fwd_report_text(author_name,author_id,abuser,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,self.report_against[abuser_id])
+                await self.fwd_report_text(author_name,author_id,abuser,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,self.report_against[abuser_id],offensive_msg_body)
 
             self.reports.pop(author_id)
 
@@ -137,9 +139,10 @@ class ModBot(discord.Client):
         await mod_channel.send(self.code_format(scores))
 
 
-    async def fwd_report_text(self,author_name,author_id,abuser_name,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,num_reports):
+    async def fwd_report_text(self,author_name,author_id,abuser_name,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,num_reports,offensive_msg_body):
         msg=''
         msg+=f'Report by {author_id} (username: {author_name}) against {abuser_id} (username: {abuser_name})\n'
+        msg+=f'Content of message: {offensive_msg_body}\n'
         msg+=f'Number of reports made against abuser: {num_reports}\n'
         msg+=f'Reaon for Report: {rep_reason}\n'
         msg+=f'Relation to abuser, if applicable: {relation_to_abuser}\n'

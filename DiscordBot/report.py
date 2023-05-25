@@ -43,7 +43,7 @@ class Report:
         self.report_reason=None
         self.did_block=None
         self.block_ask='Would you like to block this user? This user will not know that you have blocked them. Please respond with yes/no'
-        self.remove_ask='Would you like to have the message removed? Please respond with yes/no'
+        self.remove_ask='Would you like to have the message removed? Please respond with yes/no.\nThe moderation team will continue to have access for subsequent moderation decisions.'
         self.spam_type = None
         self.bully_type=None
         self.to_forward_to_mod=False
