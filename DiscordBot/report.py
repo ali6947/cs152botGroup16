@@ -199,14 +199,14 @@ class Report:
                 self.to_forward_to_mod=True
                 msg_list=['The message has been deleted',self.forward_to_mod_text,self.final_text]
                 if (self.report_reason,self.bully_type) in self.link_database:
-                    msg_list.append(f'More esources to deal with what you are facing are available [here]({self.link_database[(self.report_reason,self.bully_type)]})')
+                    msg_list.append(f'More resources to deal with what you are facing are available here ({self.link_database[(self.report_reason,self.bully_type)]})')
                 return msg_list
             elif message.content.lower().startswith('n'):
                 self.state=State.REPORT_COMPLETE
                 self.to_forward_to_mod=True
                 msg_list=[self.forward_to_mod_text,self.final_text]
                 if (self.report_reason,self.bully_type) in self.link_database:
-                    msg_list.append(f'More esources to deal with what you are facing are available [here]({self.link_database[(self.report_reason,self.bully_type)]})')
+                    msg_list.append(f'More resources to deal with what you are facing are available here ({self.link_database[(self.report_reason,self.bully_type)]})')
                 return msg_list
             else:
                 return ['I did not get that, please reply with yes/no']

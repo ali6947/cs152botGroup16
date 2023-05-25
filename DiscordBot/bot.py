@@ -34,7 +34,7 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
-        self.report_against={}
+        self.report_against={} # key is user_id , value is an integet telling number of reports
         
 
     async def on_ready(self):
