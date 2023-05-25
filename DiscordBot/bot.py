@@ -124,7 +124,10 @@ class ModBot(discord.Client):
                 decision_to_block='yes' if rep.did_block else 'no'
                 relation_to_abuser='Not Applicable' if rep.bully_type is None else str(rep.bully_type)
                 abuser_history = []
-                offensive_msg_body=rep.message.content
+                try:
+                    offensive_msg_body=rep.message.content
+                except:
+                    offensive_msg_body=rep.deleted_msg_content
 
                 async for hs in rep.message.channel.history(limit=50):
                     if hs.author.id==abuser_id:
@@ -155,6 +158,22 @@ class ModBot(discord.Client):
                         self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
+
+            elif cmd in ['temp_block','block']:
+                try:
+                    arg=int(message.content.split(" ")[1])
+                except:
+                    await mod_channel.send('Please recheck argument')
+                else:
+                    try:
+                        user_to_dm = await self.fetch_user(self.all_reports[arg].message.author.id)
+                    except:
+                        await mod_channel.send('Report with this ID was not found')
+                    else:
+                        if cmd=='temp_block':
+                            await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                        else:
+                            await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
 
 
 

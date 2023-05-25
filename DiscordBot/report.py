@@ -48,6 +48,7 @@ class Report:
         self.spam_type = None
         self.bully_type=None
         self.to_forward_to_mod=False
+        self.deleted_msg_content='<Not available>'
         self.forward_to_mod_text="""The following information (if available from your report) is sent to moderation team to inform subsequent moderation decisions: 
 1) User Relationship with Sender
 2) Decision to Block
@@ -196,6 +197,7 @@ class Report:
 
             if  message.content.lower().startswith('y'):
                 self.state=State.REPORT_COMPLETE
+                self.deleted_msg_content=self.message.content
                 await self.message.delete()
                 self.to_forward_to_mod=True
                 msg_list=['The message has been deleted',self.forward_to_mod_text,self.final_text]
