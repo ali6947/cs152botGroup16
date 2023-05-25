@@ -36,8 +36,9 @@ class Report:
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
 
-    def __init__(self, client):
+    def __init__(self, client,author):
         self.state = State.REPORT_START
+        self.report_author=author
         self.client = client
         self.message = None # use this to get author
         self.report_reason=None

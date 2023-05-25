@@ -26,6 +26,7 @@ with open(token_path) as f:
     discord_token = tokens['discord']
 
 
+
 class ModBot(discord.Client):
     def __init__(self): 
         intents = discord.Intents.default()
@@ -35,6 +36,10 @@ class ModBot(discord.Client):
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
         self.report_against={} # key is user_id , value is an integet telling number of reports
+        self.false_report_count={}
+        self.all_reports={} # mapping report ID to report object
+        self.current_rep_id=0
+        
         
 
     async def on_ready(self):
@@ -96,7 +101,7 @@ class ModBot(discord.Client):
 
         # If we don't currently have an active report for this user, add one
         if author_id not in self.reports:
-            self.reports[author_id] = Report(self)
+            self.reports[author_id] = Report(self,message.author)
 
         # Let the report class handle this message; forward all the messages it returns to uss
         responses = await self.reports[author_id].handle_message(message)
@@ -106,6 +111,10 @@ class ModBot(discord.Client):
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
             rep=self.reports[author_id]
+            id_num=self.current_rep_id
+            self.current_rep_id+=1
+            self.all_reports[id_num]=rep
+
             if rep.forward_to_mod():
                 author_name=message.author.name
                 abuser=rep.message.author.name
@@ -123,11 +132,27 @@ class ModBot(discord.Client):
                         if len(abuser_history)>=10:
                             break
                
-                await self.fwd_report_text(author_name,author_id,abuser,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,self.report_against[abuser_id],offensive_msg_body)
-
+                await self.fwd_report_text(id_num,author_name,author_id,abuser,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,self.report_against[abuser_id],offensive_msg_body)
+            
             self.reports.pop(author_id)
 
     async def handle_channel_message(self, message):
+
+        if message.channel.name == f'group-{self.group_num}-mod' and message.content.startswith('.'):
+            cmd=message.content.split(" ")[0][1:] # to remove dot
+            if cmd=='false_report':
+                try:
+                    arg=int(message.content.split(" ")[1])
+                except:
+                    print('Please recheck argument')
+                else:
+                    rep_user=self.all_reports[arg].report_author
+                    self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
+                    user_to_dm = await self.fetch_user(rep_user.id)
+                    await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
+
+
+
         # Only handle messages sent in the "group-#" channel
         if not message.channel.name == f'group-{self.group_num}':
             return
@@ -139,9 +164,10 @@ class ModBot(discord.Client):
         await mod_channel.send(self.code_format(scores))
 
 
-    async def fwd_report_text(self,author_name,author_id,abuser_name,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,num_reports,offensive_msg_body):
-        msg=''
+    async def fwd_report_text(self,rep_id,author_name,author_id,abuser_name,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,num_reports,offensive_msg_body):
+        msg=f'Report ID: {rep_id}\n'
         msg+=f'Report by {author_id} (username: {author_name}) against {abuser_id} (username: {abuser_name})\n'
+        msg+=f'Previous false reports by author: {self.false_report_count.get(author_id,0)}\n'
         msg+=f'Content of message: {offensive_msg_body}\n'
         msg+=f'Number of reports made against abuser: {num_reports}\n'
         msg+=f'Reaon for Report: {rep_reason}\n'
@@ -171,5 +197,7 @@ class ModBot(discord.Client):
         return "Evaluated: '" + text+ "'"
 
 
+
 client = ModBot()
+
 client.run(discord_token)
