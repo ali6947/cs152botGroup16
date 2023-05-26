@@ -159,7 +159,7 @@ class ModBot(discord.Client):
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
 
-            elif cmd in ['temp_block','block']:
+            elif cmd in ['temp_ban','ban']:
                 try:
                     arg=int(message.content.split(" ")[1])
                 except:
@@ -170,7 +170,7 @@ class ModBot(discord.Client):
                     except:
                         await mod_channel.send('Report with this ID was not found')
                     else:
-                        if cmd=='temp_block':
+                        if cmd=='temp_ban':
                             await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
                         else:
                             await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
@@ -197,7 +197,7 @@ class ModBot(discord.Client):
         msg+=f'Reaon for Report: {rep_reason}\n'
         msg+=f'Relation to abuser, if applicable: {relation_to_abuser}\n'
         msg+=f'Was user blocked? {decision_to_block}\n'
-        msg+=f'Last 10 abuser messages to victim:\n'
+        msg+=f'Last few abuser\'s messages to victim:\n'
         for idx,item in enumerate(abuser_history):
             msg+=f'{idx+1}): {item.content}\n'
 

@@ -185,7 +185,7 @@ class Report:
             if  message.content.lower().startswith('y'):
                 self.did_block=True
                 self.state=State.ASK_DELETE
-                return [f'User ```{message.author.name}``` has been blocked',self.remove_ask]
+                return [f'User ```{self.message.author.name}``` has been blocked',self.remove_ask]
             elif message.content.lower().startswith('n'):
                 self.state=State.ASK_DELETE
                 self.did_block=False
