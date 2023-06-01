@@ -40,7 +40,8 @@ class ModBot(discord.Client):
         self.all_reports={} # mapping report ID to report object
         self.current_rep_id=0
         self.last_message_sent =None
-        self.currently_banned_user=set()
+        self.perm_banned_user=set()
+        self.temp_banned_user=set()
         
         
 
@@ -182,17 +183,26 @@ class ModBot(discord.Client):
                     await mod_channel.send('Please recheck argument')
                 else:
                     try:
-                        user_to_dm = await self.fetch_user(self.all_reports[arg].message.author.id)
+                        user_to_dm_id=self.all_reports[arg].message.author.id
+                        user_to_dm = await self.fetch_user(user_to_dm_id)
                     except:
                         await mod_channel.send('Report with this ID was not found')
-                    else:
-                        if user_to_dm in self.currently_banned_user:
-                            await mod_channel.send('User already banned')    
-                        else:
-                            self.currently_banned_user.add(user_to_dm)
-                            if cmd=='temp_ban':
-                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                    else:    
+                        if cmd=='temp_ban':
+                            if user_to_dm_id in self.temp_banned_user:
+                                await mod_channel.send('User already temporarily banned')
+                            elif user_to_dm_id in self.perm_banned_user:
+                                await mod_channel.send('User already permanently banned')
                             else:
+                                self.temp_banned_user.add(user_to_dm_id)
+                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                        else:
+                            if user_to_dm_id in self.perm_banned_user:
+                                await mod_channel.send('User already permanently banned')
+                            else:
+                                if user_to_dm_id in self.temp_banned_user:
+                                    self.temp_banned_user.remove(user_to_dm_id)
+                                self.perm_banned_user.add(user_to_dm_id)
                                 await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
 
 
