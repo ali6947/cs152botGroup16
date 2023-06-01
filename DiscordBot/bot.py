@@ -40,6 +40,7 @@ class ModBot(discord.Client):
         self.all_reports={} # mapping report ID to report object
         self.current_rep_id=0
         self.last_message_sent =None
+        self.currently_banned_user=set()
         
         
 
@@ -185,10 +186,14 @@ class ModBot(discord.Client):
                     except:
                         await mod_channel.send('Report with this ID was not found')
                     else:
-                        if cmd=='temp_ban':
-                            await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                        if user_to_dm in self.currently_banned_user:
+                            await mod_channel.send('User already banned')    
                         else:
-                            await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending message that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                            self.currently_banned_user.add(user_to_dm)
+                            if cmd=='temp_ban':
+                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                            else:
+                                await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
 
 
 
