@@ -39,6 +39,7 @@ class ModBot(discord.Client):
         self.false_report_count={}
         self.all_reports={} # mapping report ID to report object
         self.current_rep_id=0
+        self.last_message_sent =None
         
         
 
@@ -83,6 +84,20 @@ class ModBot(discord.Client):
         else:
             await self.handle_dm(message)
 
+    async def on_raw_reaction_add(self,payload):
+        if not payload.guild_id:
+            if self.last_message_sent is None:
+                return
+            if (payload.message_id)==self.last_message_sent.id:
+                if payload.user_id in self.reports:
+                    responses= await self.reports[payload.user_id].process_rxn(payload.emoji)
+                    user_to_dm = await self.fetch_user(payload.user_id)
+                    for r in responses:
+                        self.last_message_sent = await user_to_dm.send(r)
+
+
+
+
     async def handle_dm(self, message):
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
@@ -106,7 +121,7 @@ class ModBot(discord.Client):
         # Let the report class handle this message; forward all the messages it returns to uss
         responses = await self.reports[author_id].handle_message(message)
         for r in responses:
-            await message.channel.send(r)
+            self.last_message_sent = await message.channel.send(r)
 
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():

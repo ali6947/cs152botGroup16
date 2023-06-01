@@ -31,6 +31,10 @@ class BullyType(Enum):
     STRANGER=auto()
     UNKWOWN=auto()
 
+class MyMessage:
+    def __init__(self,con):
+        self.content=con
+
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
@@ -66,6 +70,19 @@ class Report:
         (ReportType.SEXUAL_HARASS,BullyType.STRANGER):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
         (ReportType.SEXUAL_HARASS,BullyType.UNKWOWN):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
         }
+
+    async def process_rxn(self,emoji):
+        # print(type(emoji),emoji=='👍',str(emoji)=='👍')
+        if self.state not in [State.BLOCK_ASKED,State.ASK_DELETE]:
+            return ['Emoji reactions not available for previous question']
+        if str(emoji)=='👍':    
+            resps=await self.handle_message(MyMessage('y'))
+            return resps
+        elif str(emoji)=='👎':
+            resps=await self.handle_message(MyMessage('n'))
+            return resps
+        else:
+            return ['Please react with 👍 or 👎 to this messages as your reply to the previous message.']
     
     async def handle_message(self, message):
         '''
