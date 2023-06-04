@@ -8,6 +8,7 @@ import re
 import requests
 from report import Report
 import pdb
+import openai
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -42,8 +43,48 @@ class ModBot(discord.Client):
         self.last_message_sent =None
         self.perm_banned_user=set()
         self.temp_banned_user=set()
-        
-        
+
+        with open('openai_org.txt','r') as f:
+            openai.organization=strip(f.read())
+
+        with open('openai_key.txt','r') as f:
+            openai.api_key=strip(f.read())
+        self.model="gpt-4"
+
+
+    def gpt4_classify_bullying(self,sent):
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            messages=[
+            {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethinicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
+            {"role": "user", "content": "How I wanna beat up old people like you."},
+            {"role": "assistant", "content": "Age"},
+            {"role": "user", "content": "I love you"},
+            {"role": "assistant", "content": "no cyber bullying detected"},
+            {"role": "user", "content": "These Muslims girls should be killed already."}
+            {"role": "assistant", "content": "religion, gender"},
+            {"role": "user","content":sent}
+            ]
+            )
+
+        output = response['choices'][0]['message']['content']
+        classes_found=[]
+        if "no cyber bullying" in output.lower():
+            classes_found.append(0)
+        if "gender" in output.lower():
+            classes_found.append(1)
+        if "religion" in output.lower():
+            classes_found.append(2)
+        if "age" in output.lower():
+            classes_found.append(3)
+        if "ethinicity" in output.lower():
+            classes_found.append(4)
+        if "other" in output.lower():
+            classes_found.append(5)
+
+        return classes_found
+
+       
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord! It is these guilds:')
