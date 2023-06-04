@@ -35,12 +35,18 @@ class MyMessage:
     def __init__(self,con):
         self.content=con
 
+
+class AutomaticReport:
+    def __init__(self,message,bully_type):
+        self.message=message
+        self.bully_type=bully_type
+
 class Report:
     START_KEYWORD = "report"
     CANCEL_KEYWORD = "cancel"
     HELP_KEYWORD = "help"
 
-    def __init__(self, client,author):
+    def __init__(self, client,author,followup_automatic=False,automatic_msg=None,msg_to_remove=None):
         self.state = State.REPORT_START
         self.report_author=author
         self.client = client
@@ -52,6 +58,7 @@ class Report:
         self.spam_type = None
         self.bully_type=None
         self.to_forward_to_mod=False
+        self.followup_automatic=followup_automatic
         self.deleted_msg_content='<Not available>'
         self.forward_to_mod_text="""The following information (if available from your report) is sent to moderation team to inform subsequent moderation decisions: 
 1) User Relationship with Sender
@@ -70,6 +77,12 @@ class Report:
         (ReportType.SEXUAL_HARASS,BullyType.STRANGER):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
         (ReportType.SEXUAL_HARASS,BullyType.UNKWOWN):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
         }
+
+        if followup_automatic:
+            self.report_reason=ReportType.BULLY
+            self.state=State.BULLY_TYPE
+            self.message=automatic_msg
+            self.msg_to_remove=msg_to_remove
 
     async def process_rxn(self,emoji):
         # print(type(emoji),emoji=='👍',str(emoji)=='👍')
@@ -215,15 +228,18 @@ class Report:
             if  message.content.lower().startswith('y'):
                 self.state=State.REPORT_COMPLETE
                 self.deleted_msg_content=self.message.content
-                await self.message.delete()
-                self.to_forward_to_mod=True
+                if not self.followup_automatic:
+                    await self.message.delete()
+                else:
+                    await self.msg_to_remove.delete()
+                self.to_forward_to_mod=not(self.followup_automatic)
                 msg_list=['The message has been deleted',self.forward_to_mod_text,self.final_text]
                 if (self.report_reason,self.bully_type) in self.link_database:
                     msg_list.append(f'More resources to deal with what you are facing are available here ({self.link_database[(self.report_reason,self.bully_type)]})')
                 return msg_list
             elif message.content.lower().startswith('n'):
                 self.state=State.REPORT_COMPLETE
-                self.to_forward_to_mod=True
+                self.to_forward_to_mod=not(self.followup_automatic)
                 msg_list=[self.forward_to_mod_text,self.final_text]
                 if (self.report_reason,self.bully_type) in self.link_database:
                     msg_list.append(f'More resources to deal with what you are facing are available here ({self.link_database[(self.report_reason,self.bully_type)]})')

@@ -6,9 +6,11 @@ import json
 import logging
 import re
 import requests
-from report import Report
+from report import Report, AutomaticReport
 import pdb
 import openai
+import pickle
+from copy import deepcopy
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -32,6 +34,7 @@ class ModBot(discord.Client):
     def __init__(self): 
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True
         super().__init__(command_prefix='.', intents=intents)
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
@@ -41,15 +44,34 @@ class ModBot(discord.Client):
         self.all_reports={} # mapping report ID to report object
         self.current_rep_id=0
         self.last_message_sent =None
+        self.user_ML_reports={} #user ID to list of wrongful messages sent by user as flagged by ML system
         self.perm_banned_user=set()
         self.temp_banned_user=set()
 
+        self.DM_owner=None
+        self.automatic_report_question=False #used when the automatic flagging starts a report
+        self.automatic_reported_message=None # message object for the wrongful message flagged above
+        self.msg_by_bot=None # the censored message the bot sent
+        self.all_automatic_report={} #mapping automatic report ID to object
+        self.current_auto_report_id=0
+
         with open('openai_org.txt','r') as f:
-            openai.organization=strip(f.read())
+            openai.organization=(f.read().strip())
 
         with open('openai_key.txt','r') as f:
-            openai.api_key=strip(f.read())
+            openai.api_key=(f.read().strip())
         self.model="gpt-4"
+
+        with open('DiscordBot/LRmodel_pipe_cyberbullying.pkl','rb') as f:
+            self.LR_pipe=pickle.load(f)
+
+        self.misclassifications_file=open('misclassified_instances.txt','a+')
+
+
+    def LR_classify_bullying(self,sent):
+        output = self.LR_pipe.predict([sent])
+        print(output)
+        return list(output)
 
 
     def gpt4_classify_bullying(self,sent):
@@ -61,7 +83,7 @@ class ModBot(discord.Client):
             {"role": "assistant", "content": "Age"},
             {"role": "user", "content": "I love you"},
             {"role": "assistant", "content": "no cyber bullying detected"},
-            {"role": "user", "content": "These Muslims girls should be killed already."}
+            {"role": "user", "content": "These Muslims girls should be killed already."},
             {"role": "assistant", "content": "religion, gender"},
             {"role": "user","content":sent}
             ]
@@ -112,6 +134,14 @@ class ModBot(discord.Client):
                     self.my_mod_channel = channel
                     break
 
+        for guild in self.guilds:
+            for channel in guild.text_channels:
+                if channel.name == f'group-16':
+                    for member in channel.members:
+                        if member.name=='alirehan':
+                            self.DM_owner=member
+                            break
+
     async def on_message(self, message):
         '''
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
@@ -140,8 +170,36 @@ class ModBot(discord.Client):
 
 
 
+    async def initiate_automatic_report(self,message):
+        author_id = message.author.id
+        if author_id not in self.reports:
+            self.reports[author_id] = Report(self,message.author,True,self.automatic_reported_message,self.msg_by_bot)
+            # responses = await self.reports[author_id].handle_message(message)
+
+            # for r in responses:
+            self.last_message_sent = await message.channel.send('Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say')
+
+
+    async def stop_automatic_report(self,message):
+        self.last_message_sent = await message.channel.send("Please reach out in the future if you feel you are being bullied.")
+
 
     async def handle_dm(self, message):
+
+        if self.automatic_report_question:
+            
+            if message.content.lower().startswith('y'):
+                await self.initiate_automatic_report(message)
+                self.automatic_report_question=False
+                return            
+            elif message.content.lower().startswith('n'):
+                await self.stop_automatic_report(message)
+                self.automatic_report_question=False
+                return
+            else:
+                await message.channel.send('I did not get that. Please respond with yes/no')
+                return
+            
         # Handle a help message
         if message.content == Report.HELP_KEYWORD:
             reply =  "Use the `report` command to begin the reporting process.\n"
@@ -217,19 +275,39 @@ class ModBot(discord.Client):
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
 
-            elif cmd in ['temp_ban','ban']:
+            elif cmd=='auto_false_report':
                 try:
                     arg=int(message.content.split(" ")[1])
                 except:
                     await mod_channel.send('Please recheck argument')
                 else:
                     try:
-                        user_to_dm_id=self.all_reports[arg].message.author.id
-                        user_to_dm = await self.fetch_user(user_to_dm_id)
+                        report=self.all_automatic_report[arg]
+                    except:
+                        await mod_channel.send('Automatic flagging report with this ID was not found')
+                    else:
+                        for x in report.bully_type:
+                            self.user_ML_reports[report.message.author.id][x-1]-=1
+                        self.misclassifications_file.write(report.message.content+'\n')
+                        await message.channel.send('User statistics updated accordingly. Message stored for classifier improvement')
+
+            elif cmd in ['temp_ban','ban','auto_temp_ban','auto_ban']:
+                try:
+                    arg=int(message.content.split(" ")[1])
+                except:
+                    await mod_channel.send('Please recheck argument')
+                else:
+                    try:
+                        if cmd.startswith('auto'):
+                            user_to_dm_id=self.all_automatic_report[arg].message.author.id
+                            user_to_dm = await self.fetch_user(user_to_dm_id)
+                        else:
+                            user_to_dm_id=self.all_reports[arg].message.author.id
+                            user_to_dm = await self.fetch_user(user_to_dm_id)
                     except:
                         await mod_channel.send('Report with this ID was not found')
                     else:    
-                        if cmd=='temp_ban':
+                        if cmd in ['temp_ban','auto_temp_ban']:
                             if user_to_dm_id in self.temp_banned_user:
                                 await mod_channel.send('User already temporarily banned')
                             elif user_to_dm_id in self.perm_banned_user:
@@ -248,15 +326,28 @@ class ModBot(discord.Client):
 
 
 
-        # Only handle messages sent in the "group-#" channel
-        if not message.channel.name == f'group-{self.group_num}':
-            return
+        elif message.channel.name == f'group-{self.group_num}':
+            # Forward the message to the mod channel
 
-        # Forward the message to the mod channel
-        mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-        scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+
+            mod_channel = self.mod_channels[message.guild.id]
+            # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+            scores = self.eval_text(message)
+            if scores[0]:
+
+                await mod_channel.send(self.code_format(scores[1],message))
+                await self.censor_msg(message)
+
+
+    async def censor_msg(self,message):
+        msg_id1=await message.channel.send('||'+message.content+f'||\nThe above message by {message.author.name}  was blurred because it might have sensitive content')
+        if not self.DM_owner.id in self.reports:
+            await self.DM_owner.send('Are you being recently bullied or harrased?')
+            self.automatic_report_question=True
+            self.automatic_reported_message=message
+            self.msg_by_bot=msg_id1
+        await message.delete()
+
 
 
     async def fwd_report_text(self,rep_id,author_name,author_id,abuser_name,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,num_reports,offensive_msg_body):
@@ -280,16 +371,47 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        return message
+        classi=self.LR_classify_bullying(message.content)
+        if len(classi)==1 and classi[0]==0:
+            return False,[]
+        abuse_list=[x for x in classi if x!=0]
+        if message.author.id not in self.user_ML_reports:
+            self.user_ML_reports[message.author.id]=[0,0,0,0,0]
+        for abuse in abuse_list:
+            self.user_ML_reports[message.author.id][abuse-1]+=1
+        return True,abuse_list
 
+    def bully_mapper(self,x):
+        if 1 ==x:
+            return "gender"
+        if  2 ==x:
+            return "religion"
+        if 3  ==x:
+            return "age"
+        if 4 ==x:
+            return "ethinicity"
+        if 5 ==x:
+            return "miscellaneous"
     
-    def code_format(self, text):
+    def code_format(self,bullying_types,message):
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
-        return "Evaluated: '" + text+ "'"
+        self.all_automatic_report[self.current_auto_report_id]=AutomaticReport(message,bullying_types)
+        msg='****NEW AUTOMATIC FLAGGING****\n'
+        msg+=f'Report ID: {self.current_auto_report_id}\n'
+        msg+=f'The following message by  {message.author.id} (username: {message.author.name}) was automatically flagged to contain cyber bullying based on '
+        bully_string=', '.join([self.bully_mapper(x) for x in bullying_types])
+        msg+=bully_string+'\n'
+        msg+='The body of the message is given below:\n'+message.content+'\n'
+        msg+='Number offender\'s flagged messages by category:\n'
+        data=self.user_ML_reports.get(message.author.id,[0,0,0,0,0])
+        for idx,entry in enumerate(data):
+            msg+=f'{self.bully_mapper(idx+1)}: {entry}\n'
+        self.current_auto_report_id+=1
+        return msg
 
 
 
