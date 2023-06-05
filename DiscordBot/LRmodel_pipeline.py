@@ -26,4 +26,4 @@ def evaluate(text, pipe_model):
   output = pipe_model.predict(text)
   return output
 
-print(evaluate("How are you",pipe_model))
+print(evaluate("You are a good Christian man",pipe_model))

@@ -11,6 +11,7 @@ import pdb
 import openai
 import pickle
 from copy import deepcopy
+from googleapiclient import discovery
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -27,6 +28,7 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
+    perspective_token=tokens['perspective']
 
 
 
@@ -67,6 +69,27 @@ class ModBot(discord.Client):
 
         self.misclassifications_file=open('misclassified_instances.txt','a+')
 
+        self.perspective_token=perspective_token
+        self.user_ML_reports_harras={} # key is  user ID, value if flagged harrasment messages
+
+    def get_toxic_perspective_score(self,x,attr='TOXICITY'):
+
+      client = discovery.build(
+        "commentanalyzer",
+        "v1alpha1",
+        developerKey=self.perspective_token,
+        discoveryServiceUrl="https://commentanalyzer.googleapis.com/$discovery/rest?version=v1alpha1",
+        static_discovery=False,
+      )
+
+      analyze_request = {
+        'comment': { 'text': x },
+        'requestedAttributes': {attr: {}}
+      }
+
+      response = client.comments().analyze(body=analyze_request).execute()
+      return response['attributeScores'][attr]['summaryScore']['value']
+
 
     def LR_classify_bullying(self,sent):
         output = self.LR_pipe.predict([sent])
@@ -79,8 +102,6 @@ class ModBot(discord.Client):
             model=self.model,
             messages=[
             {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethinicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
-            {"role": "user", "content": "How I wanna beat up old people like you."},
-            {"role": "assistant", "content": "Age"},
             {"role": "user", "content": "I love you"},
             {"role": "assistant", "content": "no cyber bullying detected"},
             {"role": "user", "content": "These Muslims girls should be killed already."},
@@ -255,74 +276,84 @@ class ModBot(discord.Client):
             
             self.reports.pop(author_id)
 
+    def get_report_type_id(self,report_body):
+        entries=report_body.split('\n')
+        if 'automatic' in entries[0].lower():
+            autom=True
+        elif 'report' in entries[0].lower():
+            autom=False
+        else:
+            raise Exception
+        rep_id=int(entries[1].split(' ')[-1].strip())
+        return autom,rep_id
+
+
     async def handle_channel_message(self, message):
 
-        if message.channel.name == f'group-{self.group_num}-mod' and message.content.startswith('.'):
-            cmd=message.content.split(" ")[0][1:] # to remove dot
+        if message.channel.name == f'group-{self.group_num}-mod' and message.reference is not None and message.content.startswith('.'):
+
+            replied_message = await message.channel.fetch_message(message.reference.message_id)
             mod_channel = self.mod_channels[message.guild.id]
-            if cmd=='false_report':
-                try:
-                    arg=int(message.content.split(" ")[1])
-                except:
-                    await mod_channel.send('Please recheck argument')
-                else:
+
+            try:
+                autom,arg =  self.get_report_type_id(replied_message.content)
+            except:
+                await message.reply('Report in the message could not be parsed. Please check the message tagged')
+                return
+
+            cmd=message.content 
+
+            if '1' in cmd :
+                if not autom:
                     try:
                         rep_user=self.all_reports[arg].report_author
                     except:
-                        await mod_channel.send('Report with this ID was not found')
+                        await message.reply('Report with this ID was not found')
                     else:
                         self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
 
-            elif cmd=='auto_false_report':
-                try:
-                    arg=int(message.content.split(" ")[1])
-                except:
-                    await mod_channel.send('Please recheck argument')
                 else:
                     try:
                         report=self.all_automatic_report[arg]
                     except:
-                        await mod_channel.send('Automatic flagging report with this ID was not found')
+                        await message.reply('Automatic flagging report with this ID was not found')
                     else:
                         for x in report.bully_type:
                             self.user_ML_reports[report.message.author.id][x-1]-=1
                         self.misclassifications_file.write(report.message.content+'\n')
-                        await message.channel.send('User statistics updated accordingly. Message stored for classifier improvement')
+                        await message.reply('User statistics updated accordingly. Message stored for classifier improvement')
 
-            elif cmd in ['temp_ban','ban','auto_temp_ban','auto_ban']:
-                try:
-                    arg=int(message.content.split(" ")[1])
-                except:
-                    await mod_channel.send('Please recheck argument')
-                else:
+            elif '2' in cmd or '3' in cmd:
                     try:
-                        if cmd.startswith('auto'):
+                        if autom:
                             user_to_dm_id=self.all_automatic_report[arg].message.author.id
                             user_to_dm = await self.fetch_user(user_to_dm_id)
                         else:
                             user_to_dm_id=self.all_reports[arg].message.author.id
                             user_to_dm = await self.fetch_user(user_to_dm_id)
                     except:
-                        await mod_channel.send('Report with this ID was not found')
+                        await message.reply('Report with this ID was not found')
                     else:    
-                        if cmd in ['temp_ban','auto_temp_ban']:
+                        if '2' in cmd:
                             if user_to_dm_id in self.temp_banned_user:
-                                await mod_channel.send('User already temporarily banned')
+                                await message.reply('User already temporarily banned')
                             elif user_to_dm_id in self.perm_banned_user:
-                                await mod_channel.send('User already permanently banned')
+                                await message.reply('User already permanently banned')
                             else:
                                 self.temp_banned_user.add(user_to_dm_id)
                                 await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
                         else:
                             if user_to_dm_id in self.perm_banned_user:
-                                await mod_channel.send('User already permanently banned')
+                                await message.reply('User already permanently banned')
                             else:
                                 if user_to_dm_id in self.temp_banned_user:
                                     self.temp_banned_user.remove(user_to_dm_id)
                                 self.perm_banned_user.add(user_to_dm_id)
                                 await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+            else:
+                await message.reply('Please recheck the command number')
 
 
 
@@ -332,11 +363,17 @@ class ModBot(discord.Client):
 
             mod_channel = self.mod_channels[message.guild.id]
             # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
-            scores = self.eval_text(message)
+            scores = self.eval_text(message) #for cyberbullying
             if scores[0]:
-
                 await mod_channel.send(self.code_format(scores[1],message))
                 await self.censor_msg(message)
+            else: # for harrasment
+                harras_score=self.get_toxic_perspective_score(message.content)
+                if harras_score>=0.5:
+                    self.user_ML_reports_harras[message.author.id]=self.user_ML_reports_harras.get(message.author.id,0)+1
+                    await mod_channel.send(self.code_format(None,message,2))
+                    await self.censor_msg(message)
+
 
 
     async def censor_msg(self,message):
@@ -362,6 +399,7 @@ class ModBot(discord.Client):
         msg+=f'Last few abuser\'s messages to victim:\n'
         for idx,item in enumerate(abuser_history):
             msg+=f'{idx+1}): {item.content}\n'
+        msg+='Please reply to this option with a \'.\' followed by the appropriate action number:\n1)Falsify Report\n2)Temporarily ban abuser\n3)Permanently ban abuser'
 
         await self.my_mod_channel.send(f'****NEW REPORT****\n{msg}')
 
@@ -371,7 +409,7 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        classi=self.LR_classify_bullying(message.content)
+        classi=self.gpt4_classify_bullying(message.content)
         if len(classi)==1 and classi[0]==0:
             return False,[]
         abuse_list=[x for x in classi if x!=0]
@@ -393,7 +431,8 @@ class ModBot(discord.Client):
         if 5 ==x:
             return "miscellaneous"
     
-    def code_format(self,bullying_types,message):
+    def code_format(self,bullying_types,message,main_reason=1):
+        # main_reason=1 for cyberbullying , 2 for harrasment
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
@@ -402,14 +441,22 @@ class ModBot(discord.Client):
         self.all_automatic_report[self.current_auto_report_id]=AutomaticReport(message,bullying_types)
         msg='****NEW AUTOMATIC FLAGGING****\n'
         msg+=f'Report ID: {self.current_auto_report_id}\n'
-        msg+=f'The following message by  {message.author.id} (username: {message.author.name}) was automatically flagged to contain cyber bullying based on '
-        bully_string=', '.join([self.bully_mapper(x) for x in bullying_types])
-        msg+=bully_string+'\n'
+        msg+=f'The following message by  {message.author.id} (username: {message.author.name}) was automatically flagged to contain ' 
+        if main_reason==1:
+            msg+='cyber bullying based on '
+            bully_string=', '.join([self.bully_mapper(x) for x in bullying_types])
+            msg+=bully_string+'.\n'
+            msg+='Number of offender\'s flagged messages by category:\n'
+            data=self.user_ML_reports.get(message.author.id,[0,0,0,0,0])
+            for idx,entry in enumerate(data):
+                msg+=f'{self.bully_mapper(idx+1)}: {entry}\n'
+        elif main_reason==2:
+            msg+='harrasment.\n'
+            msg+=f'Number of previous messages flagged for harrasment:{self.user_ML_reports_harras.get(message.author.id,0)}\n'
+
+        msg+=f'Number of user report against offender:{self.report_against.get(message.author.id,0)}\n'
         msg+='The body of the message is given below:\n'+message.content+'\n'
-        msg+='Number offender\'s flagged messages by category:\n'
-        data=self.user_ML_reports.get(message.author.id,[0,0,0,0,0])
-        for idx,entry in enumerate(data):
-            msg+=f'{self.bully_mapper(idx+1)}: {entry}\n'
+        msg+='Please reply to this option with a \'.\' followed by the appropriate action number:\n1)Falsify Report\n2)Temporarily ban abuser\n3)Permanently ban abuser'
         self.current_auto_report_id+=1
         return msg
 
