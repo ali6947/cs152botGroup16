@@ -12,6 +12,10 @@ import openai
 import pickle
 from copy import deepcopy
 from googleapiclient import discovery
+from unidecode import unidecode
+
+from discord.ext import commands, tasks
+from datetime import datetime, timedelta
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -57,6 +61,8 @@ class ModBot(discord.Client):
         self.all_automatic_report={} #mapping automatic report ID to object
         self.current_auto_report_id=0
 
+        self.false_reporters = {} # user ID to when rreporting blocked
+
         with open('openai_org.txt','r') as f:
             openai.organization=(f.read().strip())
 
@@ -71,6 +77,18 @@ class ModBot(discord.Client):
 
         self.perspective_token=perspective_token
         self.user_ML_reports_harras={} # key is  user ID, value if flagged harrasment messages
+
+
+    
+    @tasks.loop(hours=1)
+    async def unblock_users(self):
+        for user_id, block_time in self.false_reporters.copy().items():
+            if block_time + timedelta(hours=24) <= datetime.now():    
+                del self.false_reporters[user_id]
+
+    # @self.unblock_users.before_loop
+    # async def before_unblock_users():
+    #     await self.wait_until_ready()
 
     def get_toxic_perspective_score(self,x,attr='TOXICITY'):
 
@@ -163,6 +181,8 @@ class ModBot(discord.Client):
                             self.DM_owner=member
                             break
 
+        self.unblock_users.start()
+
     async def on_message(self, message):
         '''
         This function is called whenever a message is sent in a channel that the bot can see (including DMs). 
@@ -231,6 +251,10 @@ class ModBot(discord.Client):
 
         author_id = message.author.id
         responses = []
+
+        if author_id in self.false_reporters and author_id not in self.reports and message.content.startswith(Report.START_KEYWORD) :
+            await message.channel.send('You are temporarily barred from reporting for making several false reports. Please wait a day before reporting.')
+            return
 
         # Only respond to messages if they're part of a reporting flow
         if author_id not in self.reports and not message.content.startswith(Report.START_KEYWORD):
@@ -313,6 +337,9 @@ class ModBot(discord.Client):
                         self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
+                        if self.false_report_count[rep_user.id]%3==0:
+                            self.false_reporters[rep_user.id]=datetime.now()
+                            await user_to_dm.send("For making multiple false reports, your reporting rights have been revoked for a day.")
 
                 else:
                     try:
@@ -409,7 +436,11 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
-        classi=self.gpt4_classify_bullying(message.content)
+        try:
+            msg_body=unidecode(message.content)
+        except:
+            msg_body=message.content
+        classi=self.gpt4_classify_bullying(msg_body)
         if len(classi)==1 and classi[0]==0:
             return False,[]
         abuse_list=[x for x in classi if x!=0]
