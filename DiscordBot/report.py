@@ -232,6 +232,7 @@ class Report:
                     await self.message.delete()
                 else:
                     await self.msg_to_remove.delete()
+                # print('fll auto',self.followup_automatic)
                 self.to_forward_to_mod=not(self.followup_automatic)
                 msg_list=['The message has been deleted',self.forward_to_mod_text,self.final_text]
                 if (self.report_reason,self.bully_type) in self.link_database:

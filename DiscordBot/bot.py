@@ -112,10 +112,11 @@ class ModBot(discord.Client):
 
     def LR_classify_bullying(self,sent):
         output = self.LR_pipe.predict_proba([sent])
-        # print(output,output[1:])
+        # print(sent,output)
         if np.max(output[0,1:])-(output[0,0])>=0.2:
             return [np.argmax(output)]
         else:
+            # print('gpt4')
             return self.gpt4_classify_bullying(sent)
 
 
@@ -213,6 +214,38 @@ class ModBot(discord.Client):
                     for r in responses:
                         self.last_message_sent = await user_to_dm.send(r)
 
+                    author_id=payload.user_id
+                    if self.reports[author_id].report_complete():
+                        rep=self.reports[author_id]
+                        id_num=self.current_rep_id
+                        self.current_rep_id+=1
+                        self.all_reports[id_num]=rep
+                        # print('ff to mod',rep.forward_to_mod)
+                        if rep.forward_to_mod():
+                            author_obj=(await self.fetch_user(author_id))
+                            author_name=author_obj.name
+                            abuser=rep.message.author.name
+                            abuser_id=rep.message.author.id
+                            self.report_against[abuser_id]=self.report_against.get(abuser_id,0)+1
+                            rep_reason=str(rep.report_reason)
+                            decision_to_block='yes' if rep.did_block else 'no'
+                            relation_to_abuser='Not Applicable' if rep.bully_type is None else str(rep.bully_type)
+                            abuser_history = []
+                            try:
+                                offensive_msg_body=rep.message.content
+                            except:
+                                offensive_msg_body=rep.deleted_msg_content
+
+                            async for hs in rep.message.channel.history(limit=50):
+                                if hs.author.id==abuser_id:
+                                    abuser_history.append(hs)
+                                    if len(abuser_history)>=10:
+                                        break
+                           
+                            await self.fwd_report_text(id_num,author_name,author_id,abuser,abuser_id,decision_to_block,rep_reason,relation_to_abuser,abuser_history,self.report_against[abuser_id],offensive_msg_body)
+                        
+                        self.reports.pop(author_id)
+
 
 
     async def initiate_automatic_report(self,message):
@@ -279,7 +312,7 @@ class ModBot(discord.Client):
             id_num=self.current_rep_id
             self.current_rep_id+=1
             self.all_reports[id_num]=rep
-
+            # print('ff to mod',rep.forward_to_mod)
             if rep.forward_to_mod():
                 author_name=message.author.name
                 abuser=rep.message.author.name
@@ -330,27 +363,32 @@ class ModBot(discord.Client):
                 return
 
             cmd=message.content 
-
+            
             if '1' in cmd :
+                
                 if not autom:
+                    
                     try:
                         rep_user=self.all_reports[arg].report_author
                     except:
                         await message.reply('Report with this ID was not found')
                     else:
+
                         self.false_report_count[rep_user.id]=self.false_report_count.get(rep_user.id,0)+1
                         user_to_dm = await self.fetch_user(rep_user.id)
                         await user_to_dm.send("The message you reported was found to be within our guidelines and no action is taken")
-                        if self.false_report_count[rep_user.id]%3==0:
+                        if self.false_report_count[rep_user.id]%1==0:
                             self.false_reporters[rep_user.id]=datetime.now()
                             await user_to_dm.send("For making multiple false reports, your reporting rights have been revoked for a day.")
 
                 else:
+                    
                     try:
                         report=self.all_automatic_report[arg]
                     except:
                         await message.reply('Automatic flagging report with this ID was not found')
                     else:
+                        
                         for x in report.bully_type:
                             self.user_ML_reports[report.message.author.id][x-1]-=1
                         self.misclassifications_file.write(report.message.content+'\n')
@@ -397,12 +435,14 @@ class ModBot(discord.Client):
             scores = self.eval_text(message) #for cyberbullying
             if scores[0]:
                 await mod_channel.send(self.code_format(scores[1],message))
+                # print('oooo')
                 await self.censor_msg(message)
             else: # for harrasment
                 harras_score=self.get_toxic_perspective_score(message.content)
                 if harras_score>=0.5:
                     self.user_ML_reports_harras[message.author.id]=self.user_ML_reports_harras.get(message.author.id,0)+1
                     await mod_channel.send(self.code_format(None,message,2))
+                    # print('kkkk')
                     await self.censor_msg(message)
 
 
