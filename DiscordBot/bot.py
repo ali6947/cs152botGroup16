@@ -478,7 +478,7 @@ class ModBot(discord.Client):
         msg+=f'Report ID: {self.current_auto_report_id}\n'
         msg+=f'The following message by  {message.author.id} (username: {message.author.name}) was automatically flagged to contain ' 
         if main_reason==1:
-            msg+='cyber bullying based on '
+            msg+='cyberbullying based on '
             bully_string=', '.join([self.bully_mapper(x) for x in bullying_types])
             msg+=bully_string+'.\n'
             msg+='Number of offender\'s flagged messages by category:\n'
@@ -489,7 +489,7 @@ class ModBot(discord.Client):
             msg+='harrasment.\n'
             msg+=f'Number of previous messages flagged for harrasment:{self.user_ML_reports_harras.get(message.author.id,0)}\n'
 
-        msg+=f'Number of user report against offender:{self.report_against.get(message.author.id,0)}\n'
+        msg+=f'Number of user reports against offender:{self.report_against.get(message.author.id,0)}\n'
         msg+='The body of the message is given below:\n'+message.content+'\n'
         msg+='Please reply to this option with a \'.\' followed by the appropriate action number:\n1)Falsify Report\n2)Temporarily ban abuser\n3)Permanently ban abuser'
         self.current_auto_report_id+=1
