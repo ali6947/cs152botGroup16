@@ -123,7 +123,7 @@ class ModBot(discord.Client):
         response = openai.ChatCompletion.create(
             model=self.model,
             messages=[
-            {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethinicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
+            {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethnicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
             {"role": "user", "content": "I love you"},
             {"role": "assistant", "content": "no cyber bullying detected"},
             {"role": "user", "content": "These Muslims girls should be killed already."},
@@ -142,7 +142,7 @@ class ModBot(discord.Client):
             classes_found.append(2)
         if "age" in output.lower():
             classes_found.append(3)
-        if "ethinicity" in output.lower():
+        if "ethnicity" in output.lower():
             classes_found.append(4)
         if "other" in output.lower():
             classes_found.append(5)
@@ -462,7 +462,7 @@ class ModBot(discord.Client):
         if 3  ==x:
             return "age"
         if 4 ==x:
-            return "ethinicity"
+            return "ethnicity"
         if 5 ==x:
             return "miscellaneous"
     
