@@ -13,6 +13,7 @@ import pickle
 from copy import deepcopy
 from googleapiclient import discovery
 from unidecode import unidecode
+import numpy as np
 
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta
@@ -110,9 +111,12 @@ class ModBot(discord.Client):
 
 
     def LR_classify_bullying(self,sent):
-        output = self.LR_pipe.predict([sent])
-        print(output)
-        return list(output)
+        output = self.LR_pipe.predict_proba([sent])
+        # print(output,output[1:])
+        if np.max(output[0,1:])-(output[0,0])>=0.2:
+            return [np.argmax(output)]
+        else:
+            return self.gpt4_classify_bullying(sent)
 
 
     def gpt4_classify_bullying(self,sent):
@@ -440,7 +444,7 @@ class ModBot(discord.Client):
             msg_body=unidecode(message.content)
         except:
             msg_body=message.content
-        classi=self.gpt4_classify_bullying(msg_body)
+        classi=self.LR_classify_bullying(msg_body)
         if len(classi)==1 and classi[0]==0:
             return False,[]
         abuse_list=[x for x in classi if x!=0]
