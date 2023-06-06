@@ -28,7 +28,7 @@ class BullyType(Enum):
     FAMILY=auto()
     PEER=auto()
     STRANGER=auto()
-    PARTNER=auto)
+    PARTNER=auto()
     UNKNOWN=auto()
 
 class MyMessage:

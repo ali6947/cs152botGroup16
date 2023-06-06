@@ -103,6 +103,7 @@ class ModBot(discord.Client):
 
       analyze_request = {
         'comment': { 'text': x },
+        "languages": ["en"],
         'requestedAttributes': {attr: {}}
       }
 
