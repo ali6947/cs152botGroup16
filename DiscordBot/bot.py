@@ -374,7 +374,7 @@ class ModBot(discord.Client):
                                 await message.reply('User already permanently banned')
                             else:
                                 self.temp_banned_user.add(user_to_dm_id)
-                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines, which are moderated by both automated processes and human review. \nPlease reach out to customer service if you feel this is a mistake.")
                         else:
                             if user_to_dm_id in self.perm_banned_user:
                                 await message.reply('User already permanently banned')
@@ -382,7 +382,7 @@ class ModBot(discord.Client):
                                 if user_to_dm_id in self.temp_banned_user:
                                     self.temp_banned_user.remove(user_to_dm_id)
                                 self.perm_banned_user.add(user_to_dm_id)
-                                await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                                await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines, which are moderated by both automated processes and human review. \nPlease reach out to customer service if you feel this is a mistake.")
             else:
                 await message.reply('Please recheck the command number')
 
