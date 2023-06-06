@@ -124,7 +124,7 @@ class ModBot(discord.Client):
         response = openai.ChatCompletion.create(
             model=self.model,
             messages=[
-            {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethinicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
+            {"role": "system", "content": "You are a cyber bullying detection system. For each message, you should either output \"no cyber bullying detected\" or classify the detected cyber bullying into gender, religion, age or ethnicity. If you find the input to belong to multiple categories, give a comma separated list. If no category works but you feel it is cyber bullying, output \"other\""},
             {"role": "user", "content": "I love you"},
             {"role": "assistant", "content": "no cyber bullying detected"},
             {"role": "user", "content": "These Muslims girls should be killed already."},
@@ -143,7 +143,7 @@ class ModBot(discord.Client):
             classes_found.append(2)
         if "age" in output.lower():
             classes_found.append(3)
-        if "ethinicity" in output.lower():
+        if "ethnicity" in output.lower():
             classes_found.append(4)
         if "other" in output.lower():
             classes_found.append(5)
@@ -412,7 +412,7 @@ class ModBot(discord.Client):
                                 await message.reply('User already permanently banned')
                             else:
                                 self.temp_banned_user.add(user_to_dm_id)
-                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                                await user_to_dm.send("Your account has been suspended for 6 months from the platform for sending messages that do not adhere to community guidelines, which are moderated by both automated processes and human review. \nPlease reach out to customer service if you feel this is a mistake.")
                         else:
                             if user_to_dm_id in self.perm_banned_user:
                                 await message.reply('User already permanently banned')
@@ -420,7 +420,7 @@ class ModBot(discord.Client):
                                 if user_to_dm_id in self.temp_banned_user:
                                     self.temp_banned_user.remove(user_to_dm_id)
                                 self.perm_banned_user.add(user_to_dm_id)
-                                await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines.\nPlease reach out to customer service if you feel this is a mistake.")
+                                await user_to_dm.send("Your account has been suspended indefinitely from the platform for sending messages that do not adhere to community guidelines, which are moderated by both automated processes and human review. \nPlease reach out to customer service if you feel this is a mistake.")
             else:
                 await message.reply('Please recheck the command number')
 
@@ -448,9 +448,9 @@ class ModBot(discord.Client):
 
 
     async def censor_msg(self,message):
-        msg_id1=await message.channel.send('||'+message.content+f'||\nThe above message by {message.author.name}  was blurred because it might have sensitive content')
+        msg_id1=await message.channel.send('||'+message.content+f'||\nThe above message by {message.author.name}  was blurred because it may contain sensitive content which can be found upsetting or offensive.')
         if not self.DM_owner.id in self.reports:
-            await self.DM_owner.send('Are you being recently bullied or harrased?')
+            await self.DM_owner.send('Are you being bullied or harrased?')
             self.automatic_report_question=True
             self.automatic_reported_message=message
             self.msg_by_bot=msg_id1
@@ -502,7 +502,7 @@ class ModBot(discord.Client):
         if 3  ==x:
             return "age"
         if 4 ==x:
-            return "ethinicity"
+            return "ethnicity"
         if 5 ==x:
             return "miscellaneous"
     
@@ -518,7 +518,7 @@ class ModBot(discord.Client):
         msg+=f'Report ID: {self.current_auto_report_id}\n'
         msg+=f'The following message by  {message.author.id} (username: {message.author.name}) was automatically flagged to contain ' 
         if main_reason==1:
-            msg+='cyber bullying based on '
+            msg+='cyberbullying based on '
             bully_string=', '.join([self.bully_mapper(x) for x in bullying_types])
             msg+=bully_string+'.\n'
             msg+='Number of offender\'s flagged messages by category:\n'
@@ -529,7 +529,7 @@ class ModBot(discord.Client):
             msg+='harrasment.\n'
             msg+=f'Number of previous messages flagged for harrasment:{self.user_ML_reports_harras.get(message.author.id,0)}\n'
 
-        msg+=f'Number of user report against offender:{self.report_against.get(message.author.id,0)}\n'
+        msg+=f'Number of user reports against offender:{self.report_against.get(message.author.id,0)}\n'
         msg+='The body of the message is given below:\n'+message.content+'\n'
         msg+='Please reply to this option with a \'.\' followed by the appropriate action number:\n1)Falsify Report\n2)Temporarily ban abuser\n3)Permanently ban abuser'
         self.current_auto_report_id+=1

@@ -13,7 +13,6 @@ class State(Enum):
     BULLY_TYPE=auto()
     ASK_DELETE=auto()
 
-
 class ReportType(Enum):
     DONTLIKE=auto()
     SPAM=auto()
@@ -29,7 +28,8 @@ class BullyType(Enum):
     FAMILY=auto()
     PEER=auto()
     STRANGER=auto()
-    UNKWOWN=auto()
+    PARTNER=auto)
+    UNKNOWN=auto()
 
 class MyMessage:
     def __init__(self,con):
@@ -71,11 +71,13 @@ class Report:
         (ReportType.BULLY,BullyType.FAMILY):"https://www.verywellfamily.com/dealing-with-the-family-bully-460696",
         (ReportType.BULLY,BullyType.PEER):"https://www.wikihow.com/Cope-With-Classmates-Hating-You",
         (ReportType.BULLY,BullyType.STRANGER):"https://www.endcyberbullying.net/what-to-do-if-youre-a-victim",
-        (ReportType.BULLY,BullyType.UNKWOWN):"https://www.endcyberbullying.net/what-to-do-if-youre-a-victim",
+        (ReportType.BULLY,BullyType.UNKNOWN):"https://www.endcyberbullying.net/what-to-do-if-youre-a-victim",
+        (ReportType.BULLY,BullyType.PARTNER):"https://www.thehotline.org/",
         (ReportType.SEXUAL_HARASS,BullyType.FAMILY):"https://www.rainn.org/news/surviving-sexual-abuse-family-member",
         (ReportType.SEXUAL_HARASS,BullyType.PEER):"https://www.verywellmind.com/healing-from-sexual-harassment-in-the-workplace-4151996",
         (ReportType.SEXUAL_HARASS,BullyType.STRANGER):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
-        (ReportType.SEXUAL_HARASS,BullyType.UNKWOWN):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
+        (ReportType.SEXUAL_HARASS,BullyType.PARTNER):"https://www.rainn.org/articles/intimate-partner-sexual-violence",
+        (ReportType.SEXUAL_HARASS,BullyType.UNKNOWN):"https://www.soundvision.com/article/15-tips-for-victims-on-how-to-deal-with-sexual-assault-abuse-and-harassment-in-the-west",
         }
 
         if followup_automatic:
@@ -111,7 +113,7 @@ class Report:
         if self.state == State.REPORT_START:
             reply =  "Thank you for starting the reporting process. "
             reply += "Say `help` at any time for more information.\n\n"
-            reply += "Please copy paste the link to the message you want to report.\n"
+            reply += "Please copy and paste the link to the message you want to report.\n"
             reply += "You can obtain this link by right-clicking the message and clicking `Copy Message Link`."
             self.state = State.AWAITING_MESSAGE
             return [reply]
@@ -161,12 +163,12 @@ class Report:
             elif '3' in message.content or 'three' in message.content or 'third' in message.content:
                 self.state=State.BULLY_TYPE
                 self.report_reason=ReportType.BULLY
-                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say']
+                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Partner\n5)Prefer not to say']
 
             elif '4' in message.content or 'four' in message.content or 'fourth' in message.content:
                 self.state=State.BULLY_TYPE
                 self.report_reason=ReportType.SEXUAL_HARASS
-                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Prefer not to say']
+                return ['Please tell how do you know the sender by choosing a number:\n1)Family member/relative\n2)Peer\n3)Stranger\n4)Partner\n5Prefer not to say']
 
             else:
                 return ['I did not get that, please choose a number']
@@ -205,7 +207,11 @@ class Report:
                 self.state=State.BLOCK_ASKED
                 return [self.block_ask]
             elif '4' in message.content or 'four' in message.content or 'fourth' in message.content:
-                self.bully_type=BullyType.UNKWOWN
+                self.bully_type=BullyType.PARTNER
+                self.state=State.BLOCK_ASKED
+                return [self.block_ask]
+            elif '5' in message.content or 'five' in message.content or 'fifth' in message.content:
+                self.bully_type=BullyType.UNKNOWN
                 self.state=State.BLOCK_ASKED
                 return [self.block_ask]
             else:
