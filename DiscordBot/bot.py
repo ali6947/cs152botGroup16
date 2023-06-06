@@ -410,7 +410,7 @@ class ModBot(discord.Client):
     async def censor_msg(self,message):
         msg_id1=await message.channel.send('||'+message.content+f'||\nThe above message by {message.author.name}  was blurred because it may contain sensitive content which can be found upsetting or offensive.')
         if not self.DM_owner.id in self.reports:
-            await self.DM_owner.send('Are you being recently bullied or harrased?')
+            await self.DM_owner.send('Are you being bullied or harrased?')
             self.automatic_report_question=True
             self.automatic_reported_message=message
             self.msg_by_bot=msg_id1
